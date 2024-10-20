@@ -21,7 +21,6 @@ prev_media_movil_20 = None
 
 # Función para ajustar el precio al step size
 def ajustar_precio_al_step(precio, step_size, precision):
-    # Ajustar el precio para que sea un múltiplo del step size y redondear a la precisión adecuada
     return round(round(precio / step_size) * step_size, precision)
 
 # Función para ajustar TP y SL según el bid, ask, y el step size
@@ -142,17 +141,24 @@ try:
             symbol_info = response.decode('utf-8')
             symbol_response = json.loads(symbol_info)
 
-            # Imprimir la respuesta completa del símbolo para depuración
+            # Mostrar la respuesta completa del símbolo para depuración
             print("Respuesta completa del símbolo:", symbol_response)
 
             if symbol_response.get('status'):
-                # Revisa la estructura de los datos recibidos y ajusta las claves
-                return_data = symbol_response['returnData']
+                # Verifica qué claves existen en la respuesta para el tamaño del paso y la precisión
+                return_data = symbol_response.get('returnData', {})
                 
-                # Ajusta según la clave correcta que contenga el tamaño del paso y precisión
-                # (Modifica 'lotStep' si la clave es diferente en la respuesta)
-                step_size = return_data.get('lotStep')  # Ajusta si la clave es diferente
-                precision = return_data.get('precision')  # Ajusta si la clave es diferente
+                # Imprimir las claves disponibles
+                print("Claves disponibles en returnData:", return_data.keys())
+
+                # Ajustar las claves basándote en las que existan en returnData
+                # Por ejemplo, si 'lotStep' no existe, debes reemplazarlo por la clave correcta
+                step_size = return_data.get('lotStep')  # Ajusta esta clave si es necesario
+                precision = return_data.get('precision')  # Ajusta esta clave si es necesario
+
+                # Si step_size o precision son None, imprime un mensaje de error
+                if step_size is None or precision is None:
+                    raise Exception(f"No se pudo obtener el step_size o precision. Claves disponibles: {return_data.keys()}")
                 
                 print(f'Step size: {step_size}, Precisión: {precision}')
             else:
@@ -220,8 +226,23 @@ try:
                         prev_media_movil_5 = media_movil_5
                         prev_media_movil_20 = media_movil_20
 
-                # Esperar 15 segundos antes de la siguiente iteración
+                else:
+                    print('Error al obtener los datos del símbolo.')
+
+                # Esperar 15 segundos antes de volver a solicitar datos
                 time.sleep(15)
 
 except Exception as e:
-    print(f'Error: {e}')
+    print(f'Error al conectar: {e}')
+
+finally:
+    try:
+        if 's' in locals() and s.fileno() != -1:
+            logout_command = {"command": "logout"}
+            s.send(json.dumps(logout_command).encode("UTF-8"))
+            response = s.recv(8192)
+            print('Respuesta de logout:', response.decode('utf-8'))
+    except Exception as logout_error:
+        print(f"Error en logout: {logout_error}")
+    
+    input("Presiona Enter para cerrar el programa...")
